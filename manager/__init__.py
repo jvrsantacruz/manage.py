@@ -13,6 +13,37 @@ class Error(Exception):
     pass
 
 
+class InspectedFunction(object):
+    def __init__(self, function):
+        self.function = function
+        self.arguments, self.defaults = self._inspect(function)
+
+    def _inspect(self, function):
+        arguments, _, _, defaults = inspect.getargspec(function)
+        return arguments, defaults
+
+    @property
+    def is_method(self):
+        function = self.function
+        return hasattr(function, 'im_self') or hasattr(function, '__self__')
+
+    @property
+    def argument_names(self):
+        start = 1 if self.is_method else 0   # omit self
+        return self.arguments[start:]
+
+    @property
+    def args(self):
+        end = None if not self.defaults else -len(self.defaults)  # omit kw
+        return self.argument_names[:end]
+
+    @property
+    def kwargs(self):
+        if self.defaults is None:
+            return {}
+        return dict(zip(reversed(self.arguments), reversed(self.defaults)))
+
+
 class Command(object):
     name = None
     namespace = None
@@ -32,28 +63,25 @@ class Command(object):
             self.name = re.sub('(.)([A-Z]{1})', r'\1_\2',
                 self.__class__.__name__).lower()
 
-        self.inspect()
+        self.collect_arguments()
 
     def __call__(self, *args, **kwargs):
         return self.run(*args, **kwargs)
 
-    def inspect(self):
-        self.arg_names, varargs, keywords, defaults = inspect.getargspec(
-            self.run)
-        if hasattr(self.run, 'im_self') or hasattr(self.run, '__self__'):
-            del self.arg_names[0]  # Removes `self` arg for class method
-        if defaults is not None:
-            kwargs = dict(zip(*[reversed(l) \
-                for l in (self.arg_names, defaults)]))
-        else:
-            kwargs = []
-        for arg_name in self.arg_names:
-            arg = Arg(
-                arg_name,
-                default=kwargs[arg_name] if arg_name in kwargs else None,
-                type=type(kwargs[arg_name]) if arg_name in kwargs else None,
-                required=not arg_name in kwargs,
-            )
+    def _create_arguments(self, args, kwargs):
+        for name in args:
+            default = kwargs.get(name)
+            required = not name in kwargs
+            type_ = type(default) if name in kwargs else None
+
+            yield Arg(name, default=default, type=type_, required=required)
+
+    def collect_arguments(self):
+        inspected = InspectedFunction(self.run)
+        self.arg_names = inspected.argument_names
+
+        arguments = self._create_arguments(inspected.argument_names, inspected.kwargs)
+        for arg in arguments:
             self.add_argument(arg)
 
     def add_argument(self, arg):

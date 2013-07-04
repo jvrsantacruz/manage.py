@@ -6,7 +6,7 @@ try:
     from StringIO import StringIO
 except ImportError:
     from io import StringIO
-from manager import Arg, Command, Error, Manager, positional
+from manager import Arg, Command, Error, Manager, positional, InspectedFunction
 
 
 manager = Manager()
@@ -113,7 +113,7 @@ class CommandTest(unittest.TestCase):
         self.assertIn('my_command', manager.commands)
         del manager.commands['my_command']
 
-    def test_inspect_class_based(self):
+    def test_collect_arguments_class_based(self):
         args = manager.commands['class_based'].args
         self.assertEqual(len(args), 2)
         self.assertEqual(args[0].name, 'name')
@@ -123,7 +123,7 @@ class CommandTest(unittest.TestCase):
         self.assertFalse(args[1].required)
         self.assertEqual(args[1].default, False)
 
-    def test_inspect_function_based(self):
+    def test_collect_arguments_function_based(self):
         args = manager.commands['simple_command'].args
         self.assertEqual(len(args), 2)
         self.assertEqual(args[0].name, 'name')
@@ -229,6 +229,52 @@ class ManagerTest(unittest.TestCase):
 another_key=another value"""
         self.assertEqual(manager.parse_env(env), dict(key='value',
             another_key='another value'))
+
+
+class WithMethod(object):
+    def method(self, simple):
+        pass
+
+
+method = WithMethod().method
+
+
+def function(simple, keyword1='value1', keyword2='value2'):
+    pass
+
+
+class InspectedFunctionTest(unittest.TestCase):
+
+    def test_is_method_returns_true_for_class_methods(self):
+        inspected = InspectedFunction(method)
+
+        self.assertTrue(inspected.is_method)
+
+    def test_is_method_returns_false_for_functions(self):
+        inspected = InspectedFunction(function)
+
+        self.assertFalse(inspected.is_method)
+
+    def test_args_removes_self_if_method(self):
+        inspected = InspectedFunction(method)
+
+        expected = ['simple']
+
+        self.assertEquals(inspected.args, expected)
+
+    def test_args_returns_non_kw_arguments(self):
+        inspected = InspectedFunction(function)
+
+        expected = ['simple']
+
+        self.assertEquals(inspected.args, expected)
+
+    def test_kwargs_discards_non_kw_arguments_and_asigns_them_right(self):
+        inspected = InspectedFunction(function)
+
+        expected = {'keyword1': 'value1', 'keyword2': 'value2'}
+
+        self.assertEquals(inspected.kwargs, expected)
 
 
 if __name__ == '__main__':
