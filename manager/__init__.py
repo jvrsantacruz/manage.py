@@ -93,10 +93,7 @@ class Command(object):
     def parser(self):
         parser = argparse.ArgumentParser(description=self.description)
         for arg in self.args:
-            parser.add_argument(
-                arg.name if arg.required else '--%s' % arg.name,
-                **arg.kwargs
-            )
+            parser.add_argument(arg.parser_name, **arg.kwargs)
         return parser
 
     @property
@@ -249,6 +246,10 @@ class Arg(object):
         if not key in self._kwargs:
             raise AttributeError
         return self._kwargs[key]
+
+    @property
+    def parser_name(self):
+        return self.name if self.required else '--%s' % self.name
 
     @property
     def kwargs(self):

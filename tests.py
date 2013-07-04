@@ -59,6 +59,16 @@ class ArgTest(unittest.TestCase):
         self.assertNotIn('type', kwargs)
         self.assertEqual(kwargs['action'], 'store_true')
 
+    def test_parser_name_is_name_if_required(self):
+        arg = Arg('name', required=True)
+
+        self.assertEqual(arg.parser_name, arg.name)
+
+    def test_parser_name_is_prefixed_with_slashes_if_optional(self):
+        arg = Arg('name', required=False)
+
+        self.assertEqual(arg.parser_name, '--' + arg.name)
+
 
 class CommandTest(unittest.TestCase):
     def test_registration(self):
