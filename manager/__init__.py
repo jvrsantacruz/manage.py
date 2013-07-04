@@ -230,6 +230,11 @@ class Manager(object):
         command.parse(args.all[1:])
 
 
+class positional(object):
+    def __init__(self, value):
+        self.value = value
+
+
 class Arg(object):
     defaults = {
         'help': 'no description',
@@ -249,14 +254,32 @@ class Arg(object):
 
     @property
     def parser_name(self):
-        return self.name if self.required else '--%s' % self.name
+        return self.name if self.positional else '--%s' % self.name
+
+    @property
+    def positional(self):
+        default = getattr(self, 'default', None)
+        return self.required or isinstance(default, positional)
+
+    def unwrap_default(self, default):
+        if isinstance(default, positional):
+            return default.value
+        return default
 
     @property
     def kwargs(self):
         dict_ = self._kwargs.copy()
-        if self.required:
+        if 'required' in dict_ and self.positional:
             del dict_['required']
-        elif self.type == bool and self.default == False:
+
+        if 'default' in dict_:
+            dict_['default'] = self.unwrap_default(self.default)
+
+        if not self.required and self.positional:
+            dict_['nargs'] = '?'
+
+        if self.type == bool and self.default == False:
             dict_['action'] = 'store_true'
             del dict_['type']
+
         return dict_

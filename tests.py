@@ -6,7 +6,7 @@ try:
     from StringIO import StringIO
 except ImportError:
     from io import StringIO
-from manager import Arg, Command, Error, Manager
+from manager import Arg, Command, Error, Manager, positional
 
 
 manager = Manager()
@@ -68,6 +68,41 @@ class ArgTest(unittest.TestCase):
         arg = Arg('name', required=False)
 
         self.assertEqual(arg.parser_name, '--' + arg.name)
+
+    def test_is_positional_is_true_when_is_required(self):
+        arg = Arg('name', required=True)
+
+        self.assertTrue(arg.positional)
+
+    def test_is_positional_is_false_when_is_not_required(self):
+        arg = Arg('name', required=False)
+
+        self.assertFalse(arg.positional)
+
+    def test_is_positional_returns_true_if_default_is_positional(self):
+        arg = Arg('name', default=positional('value'))
+
+        self.assertTrue(arg.positional)
+
+    def test_is_positional_returns_false_if_default_is_not_positional(self):
+        arg = Arg('name', default='value')
+
+        self.assertFalse(arg.positional)
+
+    def test_unwrap_default_returns_input_if_not_positional(self):
+        kwargs = Arg('name', default='value').kwargs
+
+        self.assertEquals(kwargs['default'], 'value')
+
+    def test_unwrap_default_returns_input_value_if_positional(self):
+        kwargs = Arg('name', default=positional('value')).kwargs
+
+        self.assertEquals(kwargs['default'], 'value')
+
+    def test_adds_undetermined_narg_number_for_optional_positional_arguments(self):
+        kwargs = Arg('name', default=positional('value')).kwargs
+
+        self.assertEquals(kwargs['nargs'], '?')
 
 
 class CommandTest(unittest.TestCase):
