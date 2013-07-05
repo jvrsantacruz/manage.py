@@ -44,6 +44,10 @@ class InspectedFunction(object):
         return dict(zip(reversed(self.arguments), reversed(self.defaults)))
 
 
+def camelcase_to_underscore(text, word_expression=re.compile('(.)([A-Z]{1})')):
+    return word_expression.sub(r'\1_\2', text).lower()
+
+
 class Command(object):
     name = None
     namespace = None
@@ -58,8 +62,7 @@ class Command(object):
                 raise Exception('Invalid keyword argument `%s`' % key)
 
         if self.name is None:
-            self.name = re.sub('(.)([A-Z]{1})', r'\1_\2',
-                self.__class__.__name__).lower()
+            self.name = camelcase_to_underscore(self.__class__.__name__)
 
         self.args = []
         self.arg_names = self.collect_arguments()
@@ -121,11 +124,11 @@ class Command(object):
         args, kwargs = self.parse(arguments)
 
         try:
-            r = self.run(*args, **kwargs)
-        except Error as e:
-            r = e
+            result = self.run(*args, **kwargs)
+        except Error as result:
+            pass
         finally:
-            return self.puts(r)
+            return self.puts(result)
 
     @property
     def parser(self):
@@ -261,7 +264,7 @@ class Manager(object):
         command = args.get(0)
         try:
             command = self.commands[command]
-        except KeyError as e:
+        except KeyError:
             puts(colored.red('Invalid command `%s`\n' % command))
             return self.usage()
         self.update_env()
@@ -314,7 +317,7 @@ class Arg(object):
         if not self.required and self.positional:
             dict_['nargs'] = '?'
 
-        if self.type == bool and self.default == False:
+        if self.type == bool and self.default is False:
             dict_['action'] = 'store_true'
             del dict_['type']
 
