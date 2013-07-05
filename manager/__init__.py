@@ -282,13 +282,11 @@ class Arg(object):
 
     def __init__(self, name, **kwargs):
         self.name = name
-        self._kwargs = self.defaults.copy()
+        self._kwargs = dict(self.defaults)
         self._kwargs.update(kwargs)
 
-    def __getattr__(self, key):
-        if not key in self._kwargs:
-            raise AttributeError
-        return self._kwargs[key]
+        for k, v in self._kwargs.items():
+            setattr(self, k, v)
 
     @property
     def parser_name(self):
