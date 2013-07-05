@@ -57,13 +57,12 @@ class Command(object):
             else:
                 raise Exception('Invalid keyword argument `%s`' % key)
 
-        self.args = []
-
         if self.name is None:
             self.name = re.sub('(.)([A-Z]{1})', r'\1_\2',
                 self.__class__.__name__).lower()
 
-        self.collect_arguments()
+        self.args = []
+        self.arg_names = self.collect_arguments()
 
     def __call__(self, *args, **kwargs):
         return self.run(*args, **kwargs)
@@ -78,21 +77,27 @@ class Command(object):
 
     def collect_arguments(self):
         inspected = InspectedFunction(self.run)
-        self.arg_names = inspected.argument_names
 
-        arguments = self._create_arguments(inspected.argument_names, inspected.kwargs)
+        arguments = self._create_arguments(
+            inspected.argument_names, inspected.kwargs)
+
         for arg in arguments:
-            self.add_argument(arg)
+            self.register_argument(arg, inspected.argument_names)
 
-    def add_argument(self, arg):
+        return inspected.argument_names
+
+    def register_argument(self, arg, arg_names):
         dest = arg.dest if hasattr(arg, 'dest') else arg.name
-        if dest not in self.arg_names:
+        if dest not in arg_names:
             raise Exception('Invalid arg %s' % arg.name)
         if self.has_argument(arg.name):
-            position = self.arg_names.index(dest)
+            position = arg_names.index(dest)
             self.args[position] = arg
         else:
             self.args.append(arg)
+
+    def add_argument(self, arg):
+        self.register_argument(arg, self.arg_names)
 
     def has_argument(self, name):
         return name in [arg.name for arg in self.args]
