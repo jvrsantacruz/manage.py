@@ -105,22 +105,27 @@ class Command(object):
     def run(self, *args, **kwargs):
         raise NotImplementedError
 
-    def parse(self, args):
-        parsed_args = self.parser.parse_args(args)
+    def parse(self, input_args):
+        parsed_args = self.parser.parse_args(input_args)
+
         args, kwargs = [], {}
-        position = 0
-        for arg_name in self.arg_names:
-            arg = self.args[position]
+        for arg, arg_name in zip(self.args, self.arg_names):
             if arg.required:
                 args.append(getattr(parsed_args, arg_name))
             elif hasattr(parsed_args, arg_name):
                 kwargs[arg_name] = getattr(parsed_args, arg_name)
-            position = position + 1
+
+        return args, kwargs
+
+    def execute(self, arguments):
+        args, kwargs = self.parse(arguments)
+
         try:
             r = self.run(*args, **kwargs)
         except Error as e:
             r = e
-        return self.puts(r)
+        finally:
+            return self.puts(r)
 
     @property
     def parser(self):
@@ -260,7 +265,7 @@ class Manager(object):
             puts(colored.red('Invalid command `%s`\n' % command))
             return self.usage()
         self.update_env()
-        command.parse(args.all[1:])
+        command.execute(args.all[1:])
 
 
 class positional(object):

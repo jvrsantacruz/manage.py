@@ -12,6 +12,18 @@ from manager import Arg, Command, Error, Manager, positional, InspectedFunction
 manager = Manager()
 
 
+class WithMethod(object):
+    def method(self, simple):
+        pass
+
+
+method = WithMethod().method
+
+
+def function(simple, keyword1='value1', keyword2='value2'):
+    pass
+
+
 class capture(object):
     """Captures the std output.
     """
@@ -152,9 +164,25 @@ class CommandTest(unittest.TestCase):
 
     def test_puts_error(self):
         with capture() as c:
-            manager.commands['raises'].parse(list())
+            manager.commands['raises'].execute(list())
 
         self.assertEqual(c.getvalue(), 'No way dude!\n')
+
+    def test_parse_separates_args(self):
+        command = Command(run=function)
+        command.add_argument(Arg('simple', required=True))
+
+        args, kwargs = command.parse(['simple'])
+
+        self.assertIn('simple', args)
+
+    def test_parse_separates_kwargs(self):
+        command = Command(run=function)
+        command.add_argument(Arg('keyword1', required=False, default=0))
+
+        args, kwargs = command.parse(['simple'])
+
+        self.assertIn('keyword1', kwargs)
 
     def test_puts_none(self):
         with capture() as c:
@@ -229,18 +257,6 @@ class ManagerTest(unittest.TestCase):
 another_key=another value"""
         self.assertEqual(manager.parse_env(env), dict(key='value',
             another_key='another value'))
-
-
-class WithMethod(object):
-    def method(self, simple):
-        pass
-
-
-method = WithMethod().method
-
-
-def function(simple, keyword1='value1', keyword2='value2'):
-    pass
 
 
 class InspectedFunctionTest(unittest.TestCase):
